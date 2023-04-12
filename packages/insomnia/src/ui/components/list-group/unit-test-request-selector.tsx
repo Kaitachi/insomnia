@@ -37,6 +37,7 @@ export const UnitTestRequestSelector: FunctionComponent<UnitTestRequestSelectorP
   selectedRequestId,
   selectableRequests,
 }) => {
+	console.table(selectableRequests);
   return (
     <StyledUnitTestRequestSelector>
       <select
@@ -48,9 +49,9 @@ export const UnitTestRequestSelector: FunctionComponent<UnitTestRequestSelectorP
         <option value="__NULL__">
           {selectableRequests.length ? '-- Select Request --' : '-- No Requests --'}
         </option>
-        {selectableRequests.map(({ name, _id }) => (
-          <option key={_id} value={_id}>
-            {name}
+        {selectableRequests.map((request) => (
+          <option key={request._id} value={request._id}>
+            {request.namePrefix} {request.name}
           </option>
         ))}
       </select>

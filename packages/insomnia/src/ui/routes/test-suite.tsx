@@ -12,6 +12,7 @@ import { database } from '../../common/database';
 import { documentationLinks } from '../../common/documentation';
 import * as models from '../../models';
 import { isRequest, Request } from '../../models/request';
+import { isRequestGroup, RequestGroup } from '../../models/request-group';
 import { isUnitTest, UnitTest } from '../../models/unit-test';
 import { UnitTestSuite } from '../../models/unit-test-suite';
 import { invariant } from '../../utils/invariant';
@@ -230,6 +231,22 @@ interface LoaderData {
   requests: Request[];
 }
 export const loader: LoaderFunction = async ({ params }): Promise<LoaderData> => {
+  function resolveRequestGroupPrefix(requestGroupId: string, allRequestGroups: any[]) {
+    let prefix = '';
+    let reqGroup: any;
+    do {
+      // Get prefix from inner most request group.
+      reqGroup = allRequestGroups.find(rg => rg._id === requestGroupId);
+      if (reqGroup == null) {
+        break;
+      }
+      const name = typeof reqGroup.name === 'string' ? reqGroup.name : '';
+      prefix = `[${name}] ` + prefix;
+      requestGroupId = reqGroup.parentId;
+    } while (true);
+    return prefix;
+  }
+
   const { workspaceId, testSuiteId } = params;
 
   invariant(workspaceId, 'Workspace ID is required');
@@ -238,7 +255,22 @@ export const loader: LoaderFunction = async ({ params }): Promise<LoaderData> =>
   const workspace = await models.workspace.getById(workspaceId);
   invariant(workspace, 'Workspace not found');
   const workspaceEntities = await database.withDescendants(workspace);
-  const requests: Request[] = workspaceEntities.filter(isRequest);
+  const requests: Request[] = workspaceEntities.filter(isRequest)
+	  .map((request) => {
+		  let namePrefix: string | null = null;
+		  // Show parent folder with name
+		  const method = request && typeof request.method === 'string' ? request.method : 'GET';
+		  const parentId = request ? request.parentId : 'n/a';
+		  console.log("requestGroup:");
+		  console.log(models.requestGroup.type);
+		  const allRequestGroups = workspaceEntities.filter(isRequestGroup) || [];
+		  const requestGroupPrefix = resolveRequestGroupPrefix(parentId, allRequestGroups);
+		  namePrefix = `${requestGroupPrefix + method} `;
+
+		  return { ...request, namePrefix };
+	  });
+
+  console.table(workspaceEntities);
 
   const unitTestSuite = await database.getWhere(models.unitTestSuite.type, {
     _id: testSuiteId,
