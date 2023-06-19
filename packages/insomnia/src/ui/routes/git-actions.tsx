@@ -1,4 +1,5 @@
 import { invariant } from '@remix-run/router';
+import { fromUrl } from 'hosted-git-info';
 import { Errors } from 'isomorphic-git';
 import path from 'path';
 import { ActionFunction, LoaderFunction, redirect } from 'react-router-dom';
@@ -32,7 +33,6 @@ import { shallowClone } from '../../sync/git/shallow-clone';
 import {
   addDotGit,
   getOauth2FormatName,
-  translateSSHtoHTTP,
 } from '../../sync/git/utils';
 import { SegmentEvent, trackSegmentEvent, vcsSegmentEventProperties } from '../analytics';
 
@@ -265,6 +265,27 @@ type CloneGitActionResult = Response | {
   errors?: string[];
 };
 
+export function parseGitToHttpsURL(s: string) {
+  // try to convert any git URL to https URL
+  let parsed = fromUrl(s)?.https() || '';
+
+  // fallback for self-hosted git servers, see https://github.com/Kong/insomnia/issues/5967
+  // and https://github.com/npm/hosted-git-info/issues/11
+  if (parsed === '') {
+    let temp = s;
+    // handle "shorter scp-like syntax"
+    temp = temp.replace(/^git@([^:]+):/, 'https://$1/');
+    // handle proper SSH URLs
+    temp = temp.replace(/^ssh:\/\//, 'https://');
+
+    // final URL fallback for any other git URL
+    temp = new URL(temp).href;
+    parsed = temp;
+  }
+
+  return parsed;
+}
+
 export const cloneGitRepoAction: ActionFunction = async ({
   request,
   params,
@@ -324,7 +345,7 @@ export const cloneGitRepoAction: ActionFunction = async ({
     vcsSegmentEventProperties('git', 'clone')
   );
   repoSettingsPatch.needsFullClone = true;
-  repoSettingsPatch.uri = translateSSHtoHTTP(repoSettingsPatch.uri || '');
+  repoSettingsPatch.uri = parseGitToHttpsURL(repoSettingsPatch.uri);
   let fsClient = MemClient.createClient();
 
   const providerName = getOauth2FormatName(repoSettingsPatch.credentials);
@@ -556,6 +577,8 @@ export const updateGitRepoAction: ActionFunction = async ({
   await models.workspaceMeta.updateByParentId(workspaceId, {
     gitRepositoryId,
   });
+
+  return null;
 };
 
 export const resetGitRepoAction: ActionFunction = async ({
@@ -590,6 +613,8 @@ export const resetGitRepoAction: ActionFunction = async ({
 
   await models.gitRepository.remove(repo);
   await database.flushChanges(flushId);
+
+  return null;
 };
 
 export interface CommitToGitRepoResult {
@@ -644,7 +669,7 @@ export const commitToGitRepoAction: ActionFunction = async ({
     const providerName = getOauth2FormatName(repo?.credentials);
     trackSegmentEvent(SegmentEvent.vcsAction, { ...vcsSegmentEventProperties('git', 'commit'), providerName });
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Error while commiting changes';
+    const message = e instanceof Error ? e.message : 'Error while committing changes';
     return { errors: [message] };
   }
 

@@ -119,7 +119,10 @@ const fetchGraphQLSchemaForRequest = async ({
     }
     const bodyBuffer = models.response.getBodyBuffer(response);
     if (bodyBuffer) {
-      const { data } = JSON.parse(bodyBuffer.toString());
+      const { data, errors } = JSON.parse(bodyBuffer.toString());
+      if (errors?.length) {
+        return { schemaFetchError: errors[0] };
+      }
       return { schema: buildClientSchema(data) };
     }
     return {
@@ -223,7 +226,6 @@ export const GraphQLEditor: FC<Props> = ({
         environmentId,
         url: request.url,
       });
-
       isMounted && setSchemaFetchError(newState?.schemaFetchError);
       isMounted && newState?.schema && setSchema(newState.schema);
       isMounted && newState?.schema && setSchemaLastFetchTime(Date.now());
@@ -284,8 +286,8 @@ export const GraphQLEditor: FC<Props> = ({
         const operationNameWasChanged = !operations.includes(state.body.operationName);
         if (operationsChanged && operationNameWasChanged) {
           // preserve selection during name change or fallback to first operation
-          const oldPostion = state.operations.indexOf(state.body.operationName);
-          operationName = operations[oldPostion] || operations[0] || '';
+          const oldPosition = state.operations.indexOf(state.body.operationName);
+          operationName = operations[oldPosition] || operations[0] || '';
         }
       }
 

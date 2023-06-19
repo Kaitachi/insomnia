@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "insomnia-plugin-kong-portal",
-  "version": "3.14.0-beta.1",
+  "version": "3.16.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "author": "Kong <office@konghq.com>",
@@ -38,7 +38,7 @@
     "axios": "^0.21.2",
     "concurrently": "^7.0.0",
     "cross-env": "^7.0.3",
-    "esbuild": "^0.14.29",
+    "esbuild": "^0.16.0",
     "esbuild-runner": "^2.2.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
